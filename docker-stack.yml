@@ -1,0 +1,50 @@
+version: "3"
+
+services:
+  traefik:
+    image: traefik
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - traefik-net
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    command: "--web --docker --docker.swarmmode --docker.domain=traefik --docker.watch --logLevel=DEBUG"
+
+  nodeapi:
+    image: diaconescu/fission-nodeapi:latest
+    deploy:
+      labels:
+        - "traefik.backend=nodeapi"
+        - "traefik.enable=true"
+        - "traefik.port=5000"
+        - "traefik.backend.healthcheck.path=/health"
+        - "traefik.backend.healthcheck.interval=10s"
+        - "traefik.frontend.rule=Host:192.168.50.100; PathPrefixStrip: /nodeapi"
+      replicas: 5
+    networks:
+      - traefik-net
+
+  webui:
+    image: diaconescu/fission-webui
+    deploy:
+      labels:
+        - "traefik.backend=webui"
+        - "traefik.enable=true"
+        - "traefik.port=3000"
+        - "traefik.backend.healthcheck.path=/health.json"
+        - "traefik.backend.healthcheck.interval=10s"
+        - "traefik.frontend.rule=Host:192.168.50.100"
+      replicas: 1
+    networks:
+      - traefik-net
+
+networks:
+  traefik-net:
+
